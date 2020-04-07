@@ -1,0 +1,8 @@
+- hosts: all
+  gather_facts: true
+  name: This role is used to manage various configuration aspects of the Ansible AWX system.
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+
+  roles:
+    - { role: awx-ops-config, tags: awx-ops-config }

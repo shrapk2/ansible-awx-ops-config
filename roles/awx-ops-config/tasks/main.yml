@@ -1,0 +1,253 @@
+---
+## This playbook requires tower-cli/awx-cli
+- name: Import required libraries
+  pip:
+    name: ansible-tower-cli
+  tags:
+    - always
+
+# Organization Management
+- name: Provision Tower Organization
+  tower_organization:
+    tower_host: "{{ tower_hostname }}"
+    tower_username: "{{ tower_svc_acct }}"
+    tower_password: "{{ tower_svc_passwd }}"
+    name: "{{ item.name }}"
+    state: present
+  when: organization_list is defined
+  with_items:
+    - "{{ organization_list }}"
+  tags:
+    - create_org
+    - never
+
+# Team Management
+- name: Provision Tower Teams
+  tower_team:
+    tower_host: "{{ tower_hostname }}"
+    tower_username: "{{ tower_svc_acct }}"
+    tower_password: "{{ tower_svc_passwd }}"
+    name: "{{ item.name }}"
+    description: "{{ item.name }} Team Members"
+    organization: "{{ item.org }}"
+    state: present
+  when: team_list is defined
+  with_items:
+    - "{{ team_list }}"
+  tags:
+    - create_team
+    - never
+
+# User Management
+- name: Provision Tower Users
+  tower_user:
+    tower_host: "{{ tower_hostname }}"
+    tower_username: "{{ tower_svc_acct }}"
+    tower_password: "{{ tower_svc_passwd }}"
+    username: "{{ item.name }}"
+    password: "{{ item.pass }}"
+    email: "{{ item.email }}"
+    first_name: "{{ item.first_name | default() }}"
+    last_name: "{{ item.last_name | default() }}"
+    superuser: "{{ item.super | default('no') }}"
+    state: present
+  when: user_list is defined
+  with_items:
+    - "{{ user_list }}"
+  tags:
+    - create_user
+    - never
+
+- name: Remove Tower Users
+  tower_user:
+    username: "{{ item.name }}"
+    email: "{{ item.email }}"
+    state: absent
+  when: user_list is defined
+  with_items:
+    - "{{ user_list }}"
+  tags:
+    - remove_user
+    - never
+
+# Role Management
+- name: Manage User Roles - Add
+  tower_role:
+    user: "{{ item.name }}"
+    target_team: "{{ item.team }}"
+    role: "{{ item.role }}"
+    state: present
+  when: item.role != 'admin'
+  with_items:
+    - "{{ user_list }}"
+  tags:
+    - add_user_role
+    - never
+
+- name: Manage User Roles - Remove
+  tower_role:
+    user: "{{ item.name }}"
+    target_team: "{{ item.team }}"
+    role: "{{ item.role }}"
+    organization: "{{ item.org }}"
+    state: absent
+  when: item.role != 'admin'
+  with_items:
+    - "{{ user_list }}"
+  tags:
+    - remove_user_role
+    - never
+
+# Credential Management
+- name: Credential Provisioning Block
+  block:
+    - name: Provision Tower Credential - Machine
+      tower_credential:
+        tower_host: "{{ tower_hostname }}"
+        tower_username: "{{ tower_svc_acct }}"
+        tower_password: "{{ tower_svc_passwd }}"
+        name: "{{ item.name }}"
+        username: "{{ item.name }}"
+        password: "{{ item.pass }}"
+        description: "{{ item.desc }}"
+        organization: "{{ item.org }}"
+        kind: "{{ item.kind }}"
+        state: present
+      when: item.kind == 'ssh'
+      with_items:
+        - "{{ credential_list }}"
+
+    - name: Provision Tower Credential - Vault
+      tower_credential:
+        tower_host: "{{ tower_hostname }}"
+        tower_username: "{{ tower_svc_acct }}"
+        tower_password: "{{ tower_svc_passwd }}"
+        name: "{{ item.name }}"
+        vault_password: "{{ item.pass }}"
+        description: "{{ item.desc }}"
+        organization: "{{ item.org }}"
+        kind: "{{ item.kind }}"
+        state: present
+      when: item.kind == 'vault'
+      with_items:
+        - "{{ credential_list }}"
+
+    - name: Provision Tower Credential - SCM
+      tower_credential:
+        tower_host: "{{ tower_hostname }}"
+        tower_username: "{{ tower_svc_acct }}"
+        tower_password: "{{ tower_svc_passwd }}"
+        name: "{{ item.name }}"
+        ssh_key_data: "{{ item.pass }}"
+        description: "{{ item.desc }}"
+        organization: "{{ item.org }}"
+        kind: "{{ item.kind }}"
+        state: present
+      when: item.kind == 'scm'
+      with_items:
+        - "{{ credential_list }}"
+    # - name: Provision Tower Credential - AWS
+    # - name: Provision Tower Credential - Azure
+  when: credential_list is defined
+  tags:
+    - create_credential
+    - never
+
+- name: Credential Removal Block
+  block:
+    - name: Remove Tower Credentials
+      tower_credential:
+        tower_host: "{{ tower_hostname }}"
+        tower_username: "{{ tower_svc_acct }}"
+        tower_password: "{{ tower_svc_passwd }}"
+        name: "{{ item.name }}"
+        kind: "{{ item.kind }}"
+        organization: "{{ item.org }}"
+        state: absent
+      with_items:
+        - "{{ credential_list }}"
+  when: credential_list is defined
+  tags:
+    - remove_credential
+    - never
+
+# Inventory Management
+- name: Provision Default Inventory for Organization
+  tower_inventory:
+    tower_host: "{{ tower_hostname }}"
+    tower_username: "{{ tower_svc_acct }}"
+    tower_password: "{{ tower_svc_passwd }}"
+    name: "{{ item.name }}-2"
+    description: "{{ item.desc | default('') }}"
+    organization: "{{ item.org | default(default_org_name) }}"
+    state: present
+  when: inventory_list is defined
+  with_items:
+    - "{{ inventory_list }}"
+  tags:
+    - create_inventory
+    - never
+
+# Project Management
+- name: Provision Tower Projects
+  tower_project:
+    tower_host: "{{ tower_hostname }}"
+    tower_username: "{{ tower_svc_acct }}"
+    tower_password: "{{ tower_svc_passwd }}"
+    name: "{{ item.name }}"
+    organization: "{{ organization_list[0].name }}"
+    state: present
+    scm_update_on_launch: true
+    scm_url: "{{ item.url }}"
+    scm_type: "{{ item.type | default('git') }}"
+    scm_credential: "{{ item.creds | default(default_scm_account)}}"
+    scm_clean: "{{ item.clean | default('true') }}"
+    scm_branch: "{{ item.branch | default('master') }}"
+  when: project_list is defined
+  with_items:
+    - "{{ project_list }}"
+  tags:
+    - create_project
+    - never
+
+# Template Management
+- name: Template Management
+  block:
+    - name: Provision Job Templates from Project list - Survey
+      tower_job_template:
+        tower_host: "{{ tower_hostname }}"
+        tower_username: "{{ tower_svc_acct }}"
+        tower_password: "{{ tower_svc_passwd }}"
+        name: "{{ item.name }}"
+        job_type: "{{ item.type | default('run') }}"
+        inventory: "{{ item.inventory | default(default_inventory) }}"
+        project: "{{ item.name }}"
+        playbook: "{{ item.playbook | default('playbook.yml') }}"
+        credential: "{{ item.creds | default(default_ssh_account) }}"
+        state: "present"
+        survey_enabled: yes
+        survey_spec: "{{ item.survey_spec }}" #"{{ lookup('file', 'my_survey.json') }}"
+      when: item.survey_spec is defined
+      with_items:
+        - "{{ project_list }}"
+
+    - name: Provision Job Templates from Project list - No Survey
+      tower_job_template:
+        tower_host: "{{ tower_hostname }}"
+        tower_username: "{{ tower_svc_acct }}"
+        tower_password: "{{ tower_svc_passwd }}"
+        name: "{{ item.name }}"
+        job_type: "{{ item.type | default('run') }}"
+        inventory: "{{ item.inventory | default(default_inventory) }}"
+        project: "{{ item.name }}"
+        playbook: "{{ item.playbook | default('playbook.yml') }}"
+        credential: "{{ item.creds | default(default_ssh_account) }}"
+        state: "present"
+        survey_enabled: no
+      when: item.survey_spec is not defined
+      with_items:
+        - "{{ project_list }}"
+  when: project_list is defined
+  tags:
+    - create_template
+    - never

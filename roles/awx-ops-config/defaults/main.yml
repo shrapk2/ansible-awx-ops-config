@@ -1,0 +1,73 @@
+---
+tower_hostname: "awx.test.kenterwebs.net"
+tower_svc_acct: "something"
+tower_svc_passwd: "something_super_secret"
+
+## Default vars for repeated values ##
+default_org_name: "{{ organization_list[0].name }}"
+default_ssh_account: "default_automation_svc_acct"
+default_scm_account: "default_scm_svc_acct"
+default_inventory: "{{ default_org_name }}-Default"
+
+# SAMPLE JSON for CLI input:
+# -e '{"credential_list": [{"name": "test_ssh1","desc": "Test Credential via Ansible Provisioning","org": "Test","kind": "ssh","pass": "data"},{"name": "test_vault1","desc": "Test Credential via Ansible Provisioning","org": "Test","kind": "vault","pass": "data"}]}'
+
+## Example Unit 1 Organization DEFAULTS ##
+organization_list:
+  - name: "Test"
+
+## Example Team DEFAULTS ##
+team_list:
+  - name: "Example Unit 1"
+    org: "{{ organization_list[0].name }}"
+  - name: "Example Unit 2"
+    org: "{{ organization_list[0].name }}"
+  - name: "TechOps"
+    org: "{{ organization_list[0].name }}"
+
+## Example Unit 1 User [local] DEFAULTS ##
+user_list:
+  - name: "test_awesome_admin"
+    role: "admin"
+    super: yes
+    email: "test_awesome_admin@kenterwebs.net"
+    first_name: "Awesome"
+    last_name: "Admin"
+    pass: "really_secret_password"
+    team: "Example Unit 1"
+    org: "{{ organization_list[0].name }}"
+  - name: "test_svc.api"
+    role: "member"
+    email: "test_svc.api.test@kenterwebs.net"
+    pass: "really_secret_password_but_obviously_different_than_admin"
+    team: "Example Unit 2"
+    org: "{{ organization_list[0].name }}"
+
+# Example Unit 1 Credential DEFAULTS ##
+credential_list:
+  - name: default_automation_svc_acct
+    desc: "Default {{ organization_list[0].name }} SSH Account"
+    org: "{{ organization_list[0].name }}"
+    kind: "ssh"
+    pass: "password_here"
+  - name: default_vault_creds
+    desc: "Default {{ organization_list[0].name }} Vault Credential"
+    org: "{{ organization_list[0].name }}"
+    kind: "vault"
+    pass: "password_here"
+  - name: default_scm_svc_acct
+    desc: "Default {{ organization_list[0].name }} Git Credential"
+    org: "{{ organization_list[0].name }}"
+    kind: "scm"
+    pass: "ssh_private_key_here"
+
+## Example Unit 1 Inventory DEFAULTS ##
+inventory_list:
+  - name: "{{ default_inventory }}"
+    #desc: "Default Inventory for {{ default_org_name }}"
+
+## Example Unit 1 Project and Template DEFAULTS ##
+# template = project to make easier mappings between roles/repositories/actions
+project_list:
+  - name: "sample_git_repo_with_a_role"
+    url: "git@git.kenterwebs.net:completely/amazing/ansible/roles/sample_git_repo_with_a_role.git"
