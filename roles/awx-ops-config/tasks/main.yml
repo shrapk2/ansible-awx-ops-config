@@ -177,7 +177,7 @@
     tower_host: "{{ tower_hostname }}"
     tower_username: "{{ tower_svc_acct }}"
     tower_password: "{{ tower_svc_passwd }}"
-    name: "{{ item.name }}-2"
+    name: "{{ item.name }}"
     description: "{{ item.desc | default('') }}"
     organization: "{{ item.org | default(default_org_name) }}"
     state: present
@@ -226,7 +226,7 @@
         credential: "{{ item.creds | default(default_ssh_account) }}"
         state: "present"
         survey_enabled: yes
-        survey_spec: "{{ item.survey_spec }}" #"{{ lookup('file', 'my_survey.json') }}"
+        survey_spec: "{{ item.survey_spec }}"
       when: item.survey_spec is defined
       with_items:
         - "{{ project_list }}"
